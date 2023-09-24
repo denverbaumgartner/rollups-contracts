@@ -12,6 +12,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title Cartesi DApp
 ///
@@ -62,6 +63,10 @@ contract CartesiDApp is
     ERC1155Holder,
     ReentrancyGuard
 {
+
+    // ADD: Define a token to be used for payments
+    IERC20 public taiToken;
+
     using Bitmask for mapping(uint256 => uint256);
     using LibOutputValidation for OutputValidityProof;
 
@@ -98,17 +103,31 @@ contract CartesiDApp is
         consensus = _consensus;
 
         _consensus.join();
+
+        // ADD: for now we hardcode LINK to be used for payment (https://faucets.chain.link/arbitrum-goerli)
+        taiToken = IERC20("0xd14838A68E8AFBAdE5efb411d5871ea0011AFd28");
     }
 
     function executeVoucher(
         address _destination,
         bytes calldata _payload,
-        Proof calldata _proof
+        Proof calldata _proof, 
+
+        // ADD: a field that is the plain english text of the payload
+        string memory prompt
     ) external override nonReentrant returns (bool) {
         bytes32 epochHash;
         uint256 firstInputIndex;
         uint256 lastInputIndex;
         uint256 inputIndex;
+
+        // ADD: Require payment from the user
+        // Transfer 0.5 TAI from the sender to this contract
+        uint256 paymentAmount = 0.01 ether;
+        require(
+            taiToken.transferFrom(msg.sender, address(this), paymentAmount),
+            "Payment failed"
+        );
 
         // query the current consensus for the desired claim
         (epochHash, firstInputIndex, lastInputIndex) = getClaim(_proof.context);
@@ -140,6 +159,10 @@ contract CartesiDApp is
         if (succ) {
             voucherBitmask.setBit(voucherPosition, true);
             emit VoucherExecuted(voucherPosition);
+
+            // ADD: record the payload that is being sent to the DApp
+            // event LogPayload(bytes payload);
+            emit LogPayload(_payload);
         }
 
         return succ;
