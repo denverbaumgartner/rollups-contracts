@@ -38,6 +38,24 @@ interface ICartesiDApp {
         string option2
     );
 
+    event logInference (
+        uint256 promptNumber,
+        string textOne,
+        string textTwo,
+        uint256 modelNumber
+    );
+
+    event logFeedback (
+        uint256 promptNumber,
+        bool isOneBetter,
+        address feedbackProvider
+    );
+
+    event logBroadcast (
+        string cid, 
+        address broadcaster
+    );
+
     // Permissioned functions
 
     /// @notice Migrate the DApp to a new consensus.
@@ -61,7 +79,8 @@ interface ICartesiDApp {
     function executeVoucher(
         address _destination,
         bytes calldata _payload,
-        Proof calldata _proof
+        Proof calldata _proof, 
+        string memory prompt // ADD: a field that is the plain english text of the payload
     ) external returns (bool);
 
     /// @notice Check whether a voucher has been executed.

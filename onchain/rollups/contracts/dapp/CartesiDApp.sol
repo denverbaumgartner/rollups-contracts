@@ -66,6 +66,7 @@ contract CartesiDApp is
 
     // ADD: Define a token to be used for payments
     IERC20 public taiToken;
+    uint256 public promptNumber
 
     using Bitmask for mapping(uint256 => uint256);
     using LibOutputValidation for OutputValidityProof;
@@ -106,6 +107,10 @@ contract CartesiDApp is
 
         // ADD: for now we hardcode LINK to be used for payment (https://faucets.chain.link/arbitrum-goerli)
         taiToken = IERC20("0xd14838A68E8AFBAdE5efb411d5871ea0011AFd28");
+
+        // ADD: for now we add in the relevant variables that we were tracking in the intial contract system 
+        promptNumber = 0;
+        modelNumber = 0;
     }
 
     function executeVoucher(
@@ -128,6 +133,9 @@ contract CartesiDApp is
             taiToken.transferFrom(msg.sender, address(this), paymentAmount),
             "Payment failed"
         );
+
+        // ADD: increment the prompt count 
+        promptNumber++;
 
         // query the current consensus for the desired claim
         (epochHash, firstInputIndex, lastInputIndex) = getClaim(_proof.context);
@@ -162,10 +170,82 @@ contract CartesiDApp is
 
             // ADD: record the payload that is being sent to the DApp
             // event LogPayload(bytes payload);
-            emit LogPayload(_payload);
-        }
+            // emit LogPayload(_payload);
 
+            // ADD: record the prompt that is being sent to the DApp
+            emit logPrompt(
+                promptNumber, 
+                modelNumber, 
+                prompt, 
+                "option1", 
+                "option2"
+            );
+            // event logPrompt(
+            //     uint256 promptNumber, 
+            //     uint256 modelNumber, 
+            //     string question, 
+            //     string option1, 
+            //     string option2
+            // );
+        }
         return succ;
+    }
+
+    // ADD
+    function updateModel(
+        string memory _modelID,
+        address _modelOwner,
+        string memory _modelTitle
+    ) public onlyOwner {
+       
+        // Increment the model count
+        modelCount++;
+
+        // Add the model to the models mapping
+        // models[modelCount] = Model({
+        //     modelID: _modelID,
+        //     modelOwner: _modelOwner,
+        //     modelTitle: _modelTitle
+        // });
+       
+        // Emit the logModel event
+        emit logModel(
+            modelCount, 
+            _modelID, 
+            _modelTitle, 
+            _modelOwner
+        );
+    }
+
+    // ADD
+    function inferenceFeedback(
+        uint256 promptNumber,
+        string memory textOne, 
+        string memory textTwo, 
+        bool isOneBetter
+    ) external {
+        require(promptNumber > 0 && promptNumber <= promptCount, "Invalid prompt number");
+
+        emit logInference(
+            promptNumber, 
+            textOne,
+            textTwo, 
+            modelCount
+        );
+
+        emit logFeedback(
+            promptNumber, 
+            prompt.isOneBetter,
+            msg.sender
+        );    
+    }
+
+    // ADD: 
+    function broadcastUpload(string memory cid) external {
+        emit logBroadcast(
+            cid, 
+            msg.sender
+        );
     }
 
     function wasVoucherExecuted(
@@ -238,6 +318,7 @@ contract CartesiDApp is
     function getConsensus() external view override returns (IConsensus) {
         return consensus;
     }
+
 
     /// @notice Accept Ether transfers.
     /// @dev If you wish to transfer Ether to a DApp while informing
