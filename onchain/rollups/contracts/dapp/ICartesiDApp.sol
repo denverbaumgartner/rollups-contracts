@@ -29,6 +29,10 @@ interface ICartesiDApp {
     ///                  amongst all vouchers emitted by this DApp
     event VoucherExecuted(uint256 voucherId);
 
+    // ADD additional events to be used 
+    event LogPrompt(uint256 promptNumber, bytes payload);
+    event LogFeedback(uint256 promptNumber, string textOne, string textTwo, bool isOneBetter);
+
     // Permissioned functions
 
     /// @notice Migrate the DApp to a new consensus.

@@ -13,6 +13,8 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 /// @title Cartesi DApp
 ///
 /// @notice This contract acts as the base layer incarnation of a DApp running on the execution layer.
@@ -74,6 +76,10 @@ contract CartesiDApp is
     /// @notice Raised when a mehtod is not called by DApp itself.
     error OnlyDApp();
 
+    // ADD:
+    uint256 public promptNumber;
+    IERC20 public taiToken;
+
     /// @notice The initial machine state hash.
     /// @dev See the `getTemplateHash` function.
     bytes32 internal immutable templateHash;
@@ -98,6 +104,13 @@ contract CartesiDApp is
         consensus = _consensus;
 
         _consensus.join();
+        
+        // ADD
+        promptNumber = 0;
+
+
+        // ADD: for now we hardcode LINK to be used for payment (https://faucets.chain.link/arbitrum-goerli)
+        taiToken = IERC20(0xd14838A68E8AFBAdE5efb411d5871ea0011AFd28);
     }
 
     function executeVoucher(
@@ -109,6 +122,14 @@ contract CartesiDApp is
         uint256 firstInputIndex;
         uint256 lastInputIndex;
         uint256 inputIndex;
+
+        // ADD: Require payment from the user
+        // Transfer 0.5 TAI from the sender to this contract
+        uint256 paymentAmount = 0.01 ether;
+        require(
+            taiToken.transferFrom(msg.sender, address(this), paymentAmount),
+            "Payment failed"
+        );
 
         // query the current consensus for the desired claim
         (epochHash, firstInputIndex, lastInputIndex) = getClaim(_proof.context);
@@ -140,9 +161,26 @@ contract CartesiDApp is
         if (succ) {
             voucherBitmask.setBit(voucherPosition, true);
             emit VoucherExecuted(voucherPosition);
+            
+            // ADD
+            emit LogPrompt(promptNumber, _payload);
         }
 
         return succ;
+    }
+
+    function recordInferenceFeedback(
+        uint256 promptNumber, 
+        string memory textOne,
+        string memory textTwo,
+        bool isOneBetter
+    ) external {
+
+        // Transfer 0.25 TAI to the responder
+        uint256 rewardAmount = 0.005 ether;
+        taiToken.transfer(msg.sender, rewardAmount);
+
+        emit LogFeedback(promptNumber, textOne, textTwo, isOneBetter);
     }
 
     function wasVoucherExecuted(
